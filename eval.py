@@ -1,5 +1,4 @@
 from __future__ import print_function
-import argparse
 import os
 
 import torch
@@ -13,6 +12,7 @@ from util.data_loader import get_loader_in, get_loader_out
 from util.model_loader import get_model
 from score import get_score
 
+import fvcore.nn
 
 def forward_fun(args):
     def forward_threshold(inputs, model):
@@ -24,13 +24,6 @@ def forward_fun(args):
             logits = model(inputs)
         return logits
     return forward_threshold
-
-args = get_args()
-forward_threshold = forward_fun(args)
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-torch.manual_seed(1)
-torch.cuda.manual_seed(1)
-np.random.seed(1)
 
 def eval_ood_detector(args, mode_args):
     base_dir = args.base_dir
@@ -48,6 +41,8 @@ def eval_ood_detector(args, mode_args):
     testloaderIn, num_classes = loader_in_dict.val_loader, loader_in_dict.num_classes
     method_args['num_classes'] = num_classes
     model = get_model(args, num_classes, load_ckpt=True)
+
+    fvcore.nn.update_bn_stats(model, testloaderIn)
 
     t0 = time.time()
 
@@ -133,6 +128,14 @@ def eval_ood_detector(args, mode_args):
     return
 
 if __name__ == '__main__':
+    torch.cuda.is_available()
+    args = get_args()
+    forward_threshold = forward_fun(args)
+    os.environ["CUDA_VISIBLE_DEVICES"] = "9"
+    torch.manual_seed(1)
+    torch.cuda.manual_seed(1)
+    np.random.seed(1)
+
     args.method_args = dict()
     mode_args = dict()
 
