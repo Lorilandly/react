@@ -3,5 +3,4 @@
 __pycache__/
 venv
 output/
-datasets/id_data/*
-datasets/ood_data/*
+datasets/*
