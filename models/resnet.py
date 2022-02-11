@@ -6,7 +6,7 @@ import torch.utils.model_zoo as model_zoo
 import torch.nn.functional as F
 __all__ = ['ResNet', 'resnet18', 'resnet50', ]
 
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 normalization = nn.BatchNorm2d
 
 model_urls = {
@@ -329,9 +329,9 @@ class ResNet(AbstractResNet):
         #x = x.view(-1, 25)
         x = nn.Linear(25*25,1000)
         '''
-        print(x.size())
-        print(type(x))
+        x = torch.transpose(x,0,1)
         x = PCA_eig(x, 25)
+        x = torch.transpose(x,0,1)
         return x
 
     def feature_list(self, x):
@@ -382,19 +382,23 @@ def resnet50(pretrained=False, **kwargs):
     return model
 
 def PCA_eig(X, k, center=True, scale=False):
-    n, p = X.size()[0], X.size()[1]
-    ones = torch.ones(n).view([n, 1])
-    h = ((1 / n) * torch.mm(ones, ones.t())) if center else torch.zeros(n * n).view([n, n])
-    H = torch.eye(n) - h
+    X = torch.squeeze(X)
+    n, p = X.size()
+    ones = torch.ones(n,device=device).view([n, 1])
+    h = ((1 / n) * torch.mm(ones, ones.t())) if center else torch.zeros(n * n, device=device).view([n, n])
+    H = torch.eye(n, device=device) - h
     X_center = torch.mm(H.double(), X.double())
-    covariance = 1 / (n-1) * torch.mm(X_center.t(), X_center).view(p, p)
-    scaling = torch.sqrt(1 / torch.diag(covariance)).double() if scale else torch.ones(p).double()
+    covariance = 1 / (n - 1) * torch.mm(X_center.t(), X_center).view(p, p)
+    scaling = torch.sqrt(1 / torch.diag(covariance)).double() if scale else torch.ones(p, device=device).double()
     scaled_covariance = torch.mm(torch.diag(scaling).view(p, p), covariance)
     eigenvalues, eigenvectors = torch.eig(scaled_covariance, True)
     components = (eigenvectors[:, :k]).t()
     explained_variance = eigenvalues[:k, 0]
+    return X
+    '''
     return { 'X':X, 'k':k, 'components':components,     
         'explained_variance':explained_variance }
+    '''
 
 
 class ResNetCifar(AbstractResNet):
