@@ -4,10 +4,9 @@ import torch.nn as nn
 import math
 import torch.utils.model_zoo as model_zoo
 import torch.nn.functional as F
-from sklearn.decomposition import PCA
 __all__ = ['ResNet', 'resnet18', 'resnet50', ]
 
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 normalization = nn.BatchNorm2d
 
 model_urls = {
@@ -209,8 +208,6 @@ class AbstractResNet(nn.Module):
         self.bn1 = normalization(64)
         self.relu = nn.ReLU(inplace=False)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        #add pca attribution to self
-        self.pca = PCA(n_components = 25)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
@@ -309,11 +306,14 @@ class ResNet(AbstractResNet):
 
     def forward_threshold(self, x, threshold=1e10):
         x = self.maxpool(self.relu(self.bn1(self.conv1(x))))
-        x= self.layer4(self.layer3(self.layer2(self.layer1(x))))
+        x = self.layer4(self.layer3(self.layer2(self.layer1(x))))
         x = self.avgpool(x)
-        #x = x.clip(max=threshold)
-        #here delete the threshold limitation
-        #transform to cpu
+        '''
+        x = x.clip(max=threshold)
+        here delete the threshold limitation
+        transform to cpu
+        '''
+        '''
         x = x.cpu().numpy()
         x = x.reshape(x.shape[0],x.shape[1]*x.shape[2]*x.shape[3])
         x = self.pca.fit_transform(x)
@@ -328,6 +328,10 @@ class ResNet(AbstractResNet):
         print(x.size(0),'x.size(0)')
         #x = x.view(-1, 25)
         x = nn.Linear(25*25,1000)
+        '''
+        x = torch.transpose(x,0,1)
+        x = PCA_eig(x, 25)
+        x = torch.transpose(x,0,1)
         return x
 
     def feature_list(self, x):
@@ -377,7 +381,24 @@ def resnet50(pretrained=False, **kwargs):
         model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
     return model
 
-
+def PCA_eig(X, k, center=True, scale=False):
+    X = torch.squeeze(X)
+    n, p = X.size()
+    ones = torch.ones(n,device=device).view([n, 1])
+    h = ((1 / n) * torch.mm(ones, ones.t())) if center else torch.zeros(n * n, device=device).view([n, n])
+    H = torch.eye(n, device=device) - h
+    X_center = torch.mm(H.double(), X.double())
+    covariance = 1 / (n - 1) * torch.mm(X_center.t(), X_center).view(p, p)
+    scaling = torch.sqrt(1 / torch.diag(covariance)).double() if scale else torch.ones(p, device=device).double()
+    scaled_covariance = torch.mm(torch.diag(scaling).view(p, p), covariance)
+    eigenvalues, eigenvectors = torch.eig(scaled_covariance, True)
+    components = (eigenvectors[:, :k]).t()
+    explained_variance = eigenvalues[:k, 0]
+    return X
+    '''
+    return { 'X':X, 'k':k, 'components':components,     
+        'explained_variance':explained_variance }
+    '''
 
 
 class ResNetCifar(AbstractResNet):

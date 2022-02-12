@@ -22,7 +22,7 @@ transform_train = transforms.Compose([
 
 transform_train_largescale = transforms.Compose([
     transforms.Resize(256),
-    transforms.RandomSizedCrop(224),
+    transforms.RandomResizedCrop(224),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -131,12 +131,12 @@ def get_loader_out(args, dataset=(''), config_type='default', split=('train', 'v
                                                           transform=config.transform_test_largescale), batch_size=batch_size, shuffle=False, num_workers=2)
         elif val_dataset == 'sun50':
             val_ood_loader = torch.utils.data.DataLoader(
-                torchvision.datasets.ImageFolder("./datasets/ood_data/SUN".format(val_dataset),
+                torchvision.datasets.ImageFolder(os.path.join("./datasets/ood_data/SUN"),
                                                  transform=config.transform_test_largescale), batch_size=batch_size, shuffle=False,
                 num_workers=2)
         elif val_dataset == 'inat':
             val_ood_loader = torch.utils.data.DataLoader(
-                torchvision.datasets.ImageFolder("./datasets/ood_data/iNaturalist".format(val_dataset),
+                torchvision.datasets.ImageFolder(os.path.join("./datasets/ood_data/iNaturalist"),
                                                  transform=config.transform_test_largescale), batch_size=batch_size, shuffle=False,
                 num_workers=2)
         elif val_dataset == 'imagenet':

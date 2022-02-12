@@ -1,7 +1,7 @@
 *.pyc
 *.swp
 __pycache__/
+__init__.py
 venv
 output/
-datasets/id_data/*
-datasets/ood_data/*
+datasets/*
