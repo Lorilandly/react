@@ -329,8 +329,11 @@ class ResNet(AbstractResNet):
         #x = x.view(-1, 25)
         x = nn.Linear(25*25,1000)
         '''
+        x = x.view(x.size(0),-1)
+        x = self.fc(x)
+        device_num = x.device
         x = torch.transpose(x,0,1)
-        x = PCA_eig(x, 25)
+        x = PCA_eig(x, 100)
         x = torch.transpose(x,0,1)
         return x
 
@@ -381,15 +384,15 @@ def resnet50(pretrained=False, **kwargs):
         model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
     return model
 
-def PCA_eig(X, k, center=True, scale=False):
+def PCA_eig(X, k, device_number,center=True, scale=False):
     X = torch.squeeze(X)
     n, p = X.size()
-    ones = torch.ones(n,device=device).view([n, 1])
-    h = ((1 / n) * torch.mm(ones, ones.t())) if center else torch.zeros(n * n, device=device).view([n, n])
-    H = torch.eye(n, device=device) - h
+    ones = torch.ones(n,device=device_number).view([n, 1])
+    h = ((1 / n) * torch.mm(ones, ones.t())) if center else torch.zeros(n * n, device=device_number).view([n, n])
+    H = torch.eye(n, device=device_number) - h
     X_center = torch.mm(H.double(), X.double())
     covariance = 1 / (n - 1) * torch.mm(X_center.t(), X_center).view(p, p)
-    scaling = torch.sqrt(1 / torch.diag(covariance)).double() if scale else torch.ones(p, device=device).double()
+    scaling = torch.sqrt(1 / torch.diag(covariance)).double() if scale else torch.ones(p, device=device_number).double()
     scaled_covariance = torch.mm(torch.diag(scaling).view(p, p), covariance)
     eigenvalues, eigenvectors = torch.eig(scaled_covariance, True)
     components = (eigenvectors[:, :k]).t()
