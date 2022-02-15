@@ -307,7 +307,14 @@ class ResNet(AbstractResNet):
         x = self.maxpool(self.relu(self.bn1(self.conv1(x))))
         x= self.layer4(self.layer3(self.layer2(self.layer1(x))))
         x = self.avgpool(x)
-        x = x.clip(max=threshold)
+        # x = x.clip(max=threshold)
+        def softcap(x):
+            cap = threshold / 2
+            if x < cap:
+                return x
+            else:
+                return cap + ((x - cap + 1) ** 0.25) - 1
+        x = x.cpu().apply_(lambda x: softcap(x)).cuda()
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
