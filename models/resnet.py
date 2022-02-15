@@ -309,7 +309,7 @@ class ResNet(AbstractResNet):
         x = self.avgpool(x)
         # x = x.clip(max=threshold)
         def softcap(x):
-            cap = threshold / 2
+            cap = threshold * 0.8
             if x < cap:
                 return x
             else:
