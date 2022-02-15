@@ -397,7 +397,7 @@ def PCA_eig(X, k, device_number,center=True, scale=False):
     eigenvalues, eigenvectors = torch.eig(scaled_covariance, True)
     components = (eigenvectors[:, :k]).t()
     explained_variance = eigenvalues[:k, 0]
-    return X
+    return components
     '''
     return { 'X':X, 'k':k, 'components':components,     
         'explained_variance':explained_variance }
