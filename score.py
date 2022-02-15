@@ -4,6 +4,21 @@ import torch.nn.functional as F
 import numpy as np
 from util.mahalanobis_lib import get_Mahalanobis_score
 
+def PCA_eig(X, k, device_number,center=True, scale=False):
+    X = torch.squeeze(X)
+    n, p = X.size()
+    ones = torch.ones(n,device=device_number).view([n, 1])
+    h = ((1 / n) * torch.mm(ones, ones.t())) if center else torch.zeros(n * n, device=device_number).view([n, n])
+    H = torch.eye(n, device=device_number) - h
+    X_center = torch.mm(H.double(), X.double())
+    covariance = 1 / (n - 1) * torch.mm(X_center.t(), X_center).view(p, p)
+    scaling = torch.sqrt(1 / torch.diag(covariance)).double() if scale else torch.ones(p, device=device_number).double()
+    scaled_covariance = torch.mm(torch.diag(scaling).view(p, p), covariance)
+    eigenvalues, eigenvectors = torch.eig(scaled_covariance, True)
+    components = (eigenvectors[:, :k]).t()
+    explained_variance = eigenvalues[:k, 0]
+    return components
+
 def get_msp_score(inputs, model, forward_func, method_args, logits=None):
     if logits is None:
         with torch.no_grad():
@@ -16,6 +31,10 @@ def get_energy_score(inputs, model, forward_func, method_args, logits=None):
         with torch.no_grad():
             logits = forward_func(inputs, model)
 
+    #here adding pca
+    logits = torch.transpose(logits,0,1)
+    logits = PCA_eig(logits, 10)
+    logits = torch.transpose(logits,0,1)
     scores = torch.logsumexp(logits.data.cpu(), dim=1).numpy()
     return scores
 
