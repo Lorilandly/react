@@ -1,6 +1,6 @@
 # TimeLine
-2.12 （最迟最迟）确定最终选择的方向（PCA or Precise_bn）
-2.16 暂定为选择滤波器
+2.12 （最迟最迟）确定最终选择的方向（PCA or Precise_bn）  
+2.16 暂定为选择滤波器  
 后续工作分两部分进行（Experiment||Paper）  
   
 ## 实验部分
