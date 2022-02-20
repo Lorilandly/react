@@ -311,7 +311,7 @@ class ResNet(AbstractResNet):
         def softcap(x):
             n = 6
             return (1 / ((1 + ((x / threshold) ** (2 * n))) ** 0.5)) * x
-        x.cpu().apply_(lambda x: softcap(x)).cuda()
+        x = x.cpu().apply_(lambda x: softcap(x)).cuda()
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
