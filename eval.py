@@ -27,7 +27,7 @@ def forward_fun(args):
 
 args = get_args()
 forward_threshold = forward_fun(args)
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 torch.manual_seed(1)
 torch.cuda.manual_seed(1)
 np.random.seed(1)
@@ -47,6 +47,8 @@ def eval_ood_detector(args, mode_args):
     loader_in_dict = get_loader_in(args, split=('val'))
     testloaderIn, num_classes = loader_in_dict.val_loader, loader_in_dict.num_classes
     method_args['num_classes'] = num_classes
+    print(torch.cuda.is_available())
+    print("device\n")
     model = get_model(args, num_classes, load_ckpt=True)
 
     t0 = time.time()
