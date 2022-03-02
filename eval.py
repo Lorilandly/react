@@ -15,11 +15,11 @@ from score import get_score
 
 
 def forward_fun(args):
-    def forward_threshold(inputs, model):
+    def forward_threshold(inputs, model, **kwargs):
         if args.model_arch in {'mobilenet'} :
-            logits = model.forward(inputs, threshold=args.threshold)
+            logits = model.forward(inputs, threshold=args.threshold, n=args.butterworth, **kwargs)
         elif args.model_arch.find('resnet') > -1:
-            logits = model.forward_threshold(inputs, threshold=args.threshold)
+            logits = model.forward_threshold(inputs, threshold=args.threshold, n=args.butterworth, **kwargs)
         else:
             logits = model(inputs)
         return logits
@@ -39,6 +39,13 @@ def eval_ood_detector(args, mode_args):
     method = args.method
     method_args = args.method_args
     name = args.name
+    # statistical data
+    id_scores = []
+    ood_scores = []
+    id_fc = []
+    ood_fc = []
+    id_filter = []
+    ood_filter = []
 
     in_save_dir = os.path.join(base_dir, in_dataset, method, name)
     if not os.path.exists(in_save_dir):
@@ -55,10 +62,12 @@ def eval_ood_detector(args, mode_args):
         f1 = open(os.path.join(in_save_dir, "in_scores.txt"), 'w')
         g1 = open(os.path.join(in_save_dir, "in_labels.txt"), 'w')
 
+    # TODO: fc, filter, score visualization, activation graph
     ########################################In-distribution###########################################
         print("Processing in-distribution images")
         N = len(testloaderIn.dataset)
         count = 0
+    
         for j, data in enumerate(testloaderIn):
             images, labels = data
             images = images.cuda()
@@ -68,7 +77,10 @@ def eval_ood_detector(args, mode_args):
             inputs = images.float()
 
             with torch.no_grad():
-                logits = forward_threshold(inputs, model)
+                record_layer = {}
+                logits = forward_threshold(inputs, model, record_to=record_layer)
+                id_filter.append(record_layer['filter'])
+                id_fc.append(record_layer['fc'])
 
                 outputs = F.softmax(logits, dim=1)
                 outputs = outputs.detach().cpu().numpy()
@@ -79,6 +91,7 @@ def eval_ood_detector(args, mode_args):
                     g1.write("{} {} {}\n".format(labels[k], preds[k], confs[k]))
 
             scores = get_score(inputs, model, forward_threshold, method, method_args, logits=logits)
+            id_scores = np.append(id_scores, scores)
             for score in scores:
                 f1.write("{}\n".format(score))
 
@@ -118,9 +131,13 @@ def eval_ood_detector(args, mode_args):
             inputs = images.float()
 
             with torch.no_grad():
-                logits = forward_threshold(inputs, model)
+                record_layer = {}
+                logits = forward_threshold(inputs, model, record_to=record_layer)
+                ood_filter.append(record_layer['filter'])
+                ood_fc.append(record_layer['fc'])
 
             scores = get_score(inputs, model, forward_threshold, method, method_args, logits=logits)
+            ood_scores = np.append(ood_scores, scores)
             for score in scores:
                 f2.write("{}\n".format(score))
 
@@ -129,7 +146,14 @@ def eval_ood_detector(args, mode_args):
             t0 = time.time()
 
         f2.close()
-
+    if args.record_layer is not None:
+        with open(args.record_layer, "wb") as f:
+            np.save(f, id_scores)
+            np.save(f, ood_scores)
+            np.save(f, np.concatenate(id_filter, dtype=float))
+            np.save(f, np.concatenate(ood_filter, dtype=float))
+            np.save(f, np.concatenate(id_fc, dtype=float))
+            np.save(f, np.concatenate(ood_fc, dtype=float))
     return
 
 if __name__ == '__main__':

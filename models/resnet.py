@@ -303,17 +303,21 @@ class ResNet(AbstractResNet):
         x = x.view(x.size(0), -1)
         return self.fc(x)
 
-    def forward_threshold(self, x, threshold=1e10):
+    def forward_threshold(self, x, threshold=1e10, n=2, record_to=None):
         x = self.maxpool(self.relu(self.bn1(self.conv1(x))))
         x= self.layer4(self.layer3(self.layer2(self.layer1(x))))
         x = self.avgpool(x)
         # x = x.clip(max=threshold)
         def softcap(x):
-            n = 6
             return (1 / ((1 + ((x / threshold) ** (2 * n))) ** 0.5)) * x
-        x = x.cpu().apply_(lambda x: softcap(x)).cuda()
-        x = x.view(x.size(0), -1)
+        x = x.detach().cpu().apply_(lambda x: softcap(x))
+        filter_data = x.numpy()
+        x = x.cuda().view(x.size(0), -1)
         x = self.fc(x)
+        if record_to is not None:
+            fc_data = x.detach().cpu().numpy()
+            record_to['fc'] = fc_data
+            record_to['filter'] = filter_data
         return x
 
     def feature_list(self, x):
